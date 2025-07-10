@@ -6,6 +6,9 @@ import toolboxContext from "../../store/toolbox-context";
 
 import classes from "./index.module.css";
 
+import { getSvgPathFromStroke } from "../../utils/element";
+import getStroke from "perfect-freehand";
+
 function Board() {
   const canvasRef = useRef();
   const textAreaRef = useRef();
@@ -18,6 +21,7 @@ function Board() {
     textAreaBlurHandler,
     undo,
     redo,
+    setCanvasId,
   } = useContext(boardContext);
   const { toolboxState } = useContext(toolboxContext);
 
@@ -60,7 +64,10 @@ function Board() {
           break;
         case TOOL_ITEMS.BRUSH:
           context.fillStyle = element.stroke;
-          context.fill(element.path);
+          const path = new Path2D(
+            getSvgPathFromStroke(getStroke(element.points))
+          );
+          context.fill(path);
           context.restore();
           break;
         case TOOL_ITEMS.TEXT:
@@ -88,6 +95,8 @@ function Board() {
       }, 0);
     }
   }, [toolActionType]);
+
+  // console.log("Elements ",elements);
 
   const handleMouseDown = (event) => {
     boardMouseDownHandler(event, toolboxState);
