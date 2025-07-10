@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Board from "./components/Board";
 import Toolbar from "./components/Toolbar";
 import Toolbox from "./components/Toolbox";
+import Sidebar from "./components/Sidebar";
 
 import BoardProvider from "./store/BoardProvider";
 import ToolboxProvider from "./store/ToolboxProvider";
@@ -16,6 +17,7 @@ function HomePage() {
         <Toolbar />
         <Board />
         <Toolbox />
+        <Sidebar />
       </div>
     </ToolboxProvider>
   );
