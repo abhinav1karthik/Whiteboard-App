@@ -48,3 +48,17 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ error: "Login failed", details: error.message });
   }
 };
+
+// Get User Details
+exports.getUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-password");
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to get user", details: error.message });
+  }
+};

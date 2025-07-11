@@ -4,11 +4,11 @@ import Board from "./components/Board";
 import Toolbar from "./components/Toolbar";
 import Toolbox from "./components/Toolbox";
 import Sidebar from "./components/Sidebar";
-
 import BoardProvider from "./store/BoardProvider";
 import ToolboxProvider from "./store/ToolboxProvider";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import CanvasPage from "./pages/canvasPage";
 
 function HomePage() {
   return (
@@ -31,6 +31,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/" element={<HomePage />} />
+          <Route path="/load/:canvasId" element={<CanvasPage />} />{" "}
+          {/* updated */}
         </Routes>
       </Router>
     </BoardProvider>

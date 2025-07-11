@@ -10,27 +10,6 @@ const Sidebar = () => {
   const { isUserLoggedIn } = useContext(boardContext);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isUserLoggedIn) {
-      fetchCanvases();
-    }
-  }, [isUserLoggedIn]);
-
-  const fetchCanvases = async () => {
-    try {
-      const response = await axios.get(
-        "http://localhost:5000/api/canvas/list",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setCanvases(response.data);
-      console.log(response.data);
-    } catch (error) {
-      console.error("Error fetching canvases:", error);
-    }
-  };
-
   const handleCreateCanvas = async () => {
     try {
       const response = await axios.post(

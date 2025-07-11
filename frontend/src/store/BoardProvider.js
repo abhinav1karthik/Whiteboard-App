@@ -85,7 +85,7 @@ const boardReducer = (state, action) => {
       const newHistory = state.history.slice(0, state.index + 1);
       newHistory.push(elementsCopy);
       if (state.isUserLoggedIn) {
-        // updateCanvas(state.canvasId, elementsCopy);
+        //updateCanvas(state.canvasId, elementsCopy);
       }
       return {
         ...state,
@@ -102,7 +102,7 @@ const boardReducer = (state, action) => {
       const newHistory = state.history.slice(0, state.index + 1);
       newHistory.push(newElements);
       if (state.isUserLoggedIn) {
-        // updateCanvas(state.canvasId, newElements);
+        //updateCanvas(state.canvasId, newElements);
       }
       return {
         ...state,
@@ -150,11 +150,12 @@ const boardReducer = (state, action) => {
         index: state.index + 1,
       };
     }
-    case BOARD_ACTIONS.SET_USER_LOGIN_STATUS:
+    case BOARD_ACTIONS.SET_USER_LOGIN_STATUS: {
       return {
         ...state,
         isUserLoggedIn: action.payload.isUserLoggedIn,
       };
+    }
     default:
       return state;
   }
