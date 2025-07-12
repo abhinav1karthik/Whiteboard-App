@@ -8,19 +8,13 @@ import { useParams } from "react-router-dom";
 const Sidebar = () => {
   const [canvases, setCanvases] = useState([]);
   const token = localStorage.getItem("whiteboard_user_token");
-  const {
-    canvasId,
-    setCanvasId,
-    setElements,
-    setHistory,
-    isUserLoggedIn,
-    setUserLoginStatus,
-  } = useContext(boardContext);
+  const { canvasId, setCanvasId, isUserLoggedIn, setUserLoginStatus } =
+    useContext(boardContext);
+
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
   const { id } = useParams();
 
   useEffect(() => {
@@ -29,7 +23,12 @@ const Sidebar = () => {
     }
   }, [isUserLoggedIn]);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    // Redirect to first canvas if none selected
+    if (canvases.length > 0 && !id) {
+      navigate(`/${canvases[0]._id}`);
+    }
+  }, [canvases, id, navigate]);
 
   const fetchCanvases = async () => {
     try {
@@ -40,19 +39,12 @@ const Sidebar = () => {
         }
       );
       setCanvases(response.data);
-      console.log(response.data);
 
       if (response.data.length === 0) {
-        const newCanvas = await handleCreateCanvas();
-        if (newCanvas) {
-          setCanvasId(newCanvas._id);
-          handleCanvasClick(newCanvas._id);
-        }
-      } else if (!canvasId && response.data.length > 0) {
-        if (!id) {
-          setCanvasId(response.data[0]._id);
-          handleCanvasClick(response.data[0]._id);
-        }
+        handleCreateCanvas();
+      } else if (!id) {
+        setCanvasId(response.data[0]._id);
+        navigate(`/${response.data[0]._id}`);
       }
     } catch (error) {
       console.error("Error fetching canvases:", error);
@@ -68,13 +60,11 @@ const Sidebar = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      console.log(response.data);
       fetchCanvases();
       setCanvasId(response.data.canvasId);
-      handleCanvasClick(response.data.canvasId);
+      navigate(`/${response.data.canvasId}`);
     } catch (error) {
       console.error("Error creating canvas:", error);
-      return null;
     }
   };
 
@@ -84,14 +74,20 @@ const Sidebar = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchCanvases();
-      setCanvasId(canvases[0]._id);
-      handleCanvasClick(canvases[0]._id);
+
+      // Navigate to first canvas if available
+      if (canvases.length > 1) {
+        const nextCanvas = canvases.find((canvas) => canvas._id !== id);
+        navigate(`/${nextCanvas._id}`);
+      } else {
+        handleCreateCanvas();
+      }
     } catch (error) {
       console.error("Error deleting canvas:", error);
     }
   };
 
-  const handleCanvasClick = async (id) => {
+  const handleCanvasClick = (id) => {
     navigate(`/${id}`);
   };
 
@@ -99,7 +95,7 @@ const Sidebar = () => {
     localStorage.removeItem("whiteboard_user_token");
     setCanvases([]);
     setUserLoginStatus(false);
-    navigate("/");
+    navigate("/login");
   };
 
   const handleLogin = () => {
@@ -113,26 +109,20 @@ const Sidebar = () => {
     }
 
     try {
-      setError(""); // Clear previous errors
-      setSuccess(""); // Clear previous success message
+      setError("");
+      setSuccess("");
 
       const response = await axios.put(
         `http://localhost:5000/api/canvas/share/${canvasId}`,
         { email },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setSuccess(response.data.message);
-      setTimeout(() => {
-        setSuccess("");
-      }, 5000);
+      setTimeout(() => setSuccess(""), 5000);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to share canvas.");
-      setTimeout(() => {
-        setError("");
-      }, 5000);
+      setTimeout(() => setError(""), 5000);
     }
   };
 
@@ -145,6 +135,7 @@ const Sidebar = () => {
       >
         + Create New Canvas
       </button>
+
       <ul className="canvas-list">
         {canvases.map((canvas) => (
           <li
@@ -157,13 +148,13 @@ const Sidebar = () => {
               className="canvas-name"
               onClick={() => handleCanvasClick(canvas._id)}
             >
-              {canvas._id}
+              Canvas {canvases.indexOf(canvas) + 1}
             </span>
             <button
               className="delete-button"
               onClick={() => handleDeleteCanvas(canvas._id)}
             >
-              del
+              ×
             </button>
           </li>
         ))}
@@ -172,7 +163,7 @@ const Sidebar = () => {
       <div className="share-container">
         <input
           type="email"
-          placeholder="Enter the email"
+          placeholder="Enter email to share"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -186,6 +177,7 @@ const Sidebar = () => {
         {error && <p className="error-message">{error}</p>}
         {success && <p className="success-message">{success}</p>}
       </div>
+
       {isUserLoggedIn ? (
         <button className="auth-button logout-button" onClick={handleLogout}>
           Logout

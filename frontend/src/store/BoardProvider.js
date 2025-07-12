@@ -2,9 +2,6 @@ import React, { useCallback, useReducer, useEffect } from "react";
 import boardContext from "./board-context";
 import { BOARD_ACTIONS, TOOL_ACTION_TYPES, TOOL_ITEMS } from "../constants";
 import { createElement, isPointNearElement } from "../utils/element";
-import { updateCanvas, fetchInitialCanvasElements } from "../utils/api";
-
-const canvasId = "6871f98a92c7123591b1f65c";
 
 const boardReducer = (state, action) => {
   switch (action.type) {
@@ -19,6 +16,13 @@ const boardReducer = (state, action) => {
         ...state,
         toolActionType: action.payload.actionType,
       };
+    case BOARD_ACTIONS.SYNC_ELEMENTS:
+      return {
+        ...state,
+        elements: action.payload.elements,
+        history: [...state.history, action.payload.elements],
+        index: state.index + 1,
+      };
     case BOARD_ACTIONS.DRAW_DOWN: {
       const { clientX, clientY, stroke, fill, size } = action.payload;
       const newElement = createElement(
@@ -29,14 +33,13 @@ const boardReducer = (state, action) => {
         clientY,
         { type: state.activeToolItem, stroke, fill, size }
       );
-      const prevElements = state.elements;
       return {
         ...state,
         toolActionType:
           state.activeToolItem === TOOL_ITEMS.TEXT
             ? TOOL_ACTION_TYPES.WRITING
             : TOOL_ACTION_TYPES.DRAWING,
-        elements: [...prevElements, newElement],
+        elements: [...state.elements, newElement],
       };
     }
     case BOARD_ACTIONS.DRAW_MOVE: {
@@ -44,19 +47,27 @@ const boardReducer = (state, action) => {
       const newElements = [...state.elements];
       const index = state.elements.length - 1;
       const { type } = newElements[index];
+
       switch (type) {
         case TOOL_ITEMS.LINE:
         case TOOL_ITEMS.RECTANGLE:
         case TOOL_ITEMS.CIRCLE:
         case TOOL_ITEMS.ARROW:
           const { x1, y1, stroke, fill, size } = newElements[index];
-          const newElement = createElement(index, x1, y1, clientX, clientY, {
-            type: state.activeToolItem,
-            stroke,
-            fill,
-            size,
-          });
-          newElements[index] = newElement;
+          const updatedElement = createElement(
+            index,
+            x1,
+            y1,
+            clientX,
+            clientY,
+            {
+              type: state.activeToolItem,
+              stroke,
+              fill,
+              size,
+            }
+          );
+          newElements[index] = updatedElement;
           return {
             ...state,
             elements: newElements,
@@ -66,26 +77,16 @@ const boardReducer = (state, action) => {
             ...newElements[index].points,
             { x: clientX, y: clientY },
           ];
-          // newElements[index].path = new Path2D(
-          //   getSvgPathFromStroke(getStroke(newElements[index].points))
-          // );
           return {
             ...state,
             elements: newElements,
           };
         default:
-          throw new Error("Type not recognized");
+          return state;
       }
     }
     case BOARD_ACTIONS.DRAW_UP: {
-      const elementsCopy = [...state.elements];
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(elementsCopy);
-      // updateCanvas(state.canvasId, elementsCopy);
-      // if (state.isUserLoggedIn) {
-      //   updateCanvas(state.canvasId, elementsCopy);
-      // }
-
+      const newHistory = [...state.history, state.elements];
       return {
         ...state,
         history: newHistory,
@@ -94,16 +95,10 @@ const boardReducer = (state, action) => {
     }
     case BOARD_ACTIONS.ERASE: {
       const { clientX, clientY } = action.payload;
-      let newElements = [...state.elements];
-      newElements = newElements.filter((element) => {
+      const newElements = state.elements.filter((element) => {
         return !isPointNearElement(element, clientX, clientY);
       });
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(newElements);
-      // updateCanvas(state.canvasId, newElements);
-      // if (state.isUserLoggedIn) {
-      //   updateCanvas(state.canvasId, newElements);
-      // }
+      const newHistory = [...state.history, newElements];
       return {
         ...state,
         elements: newElements,
@@ -115,12 +110,7 @@ const boardReducer = (state, action) => {
       const index = state.elements.length - 1;
       const newElements = [...state.elements];
       newElements[index].text = action.payload.text;
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(newElements);
-      // updateCanvas(state.canvasId, newElements);
-      // if (state.isUserLoggedIn) {
-      //   updateCanvas(state.canvasId, newElements);
-      // }
+      const newHistory = [...state.history, newElements];
       return {
         ...state,
         toolActionType: TOOL_ACTION_TYPES.NONE,
@@ -131,11 +121,6 @@ const boardReducer = (state, action) => {
     }
     case BOARD_ACTIONS.UNDO: {
       if (state.index <= 0) return state;
-      console.log("undo testing ", state.history);
-      // updateCanvas(state.canvasId, state.history[state.index - 1]);
-      // if (state.isUserLoggedIn) {
-      //   updateCanvas(state.canvasId, state.history[state.index - 1]);
-      // }
       return {
         ...state,
         elements: state.history[state.index - 1],
@@ -144,21 +129,18 @@ const boardReducer = (state, action) => {
     }
     case BOARD_ACTIONS.REDO: {
       if (state.index >= state.history.length - 1) return state;
-      // updateCanvas(state.canvasId, state.history[state.index + 1]);
-      // if (state.isUserLoggedIn) {
-      //   updateCanvas(state.canvasId, state.history[state.index + 1]);
-      // }
       return {
         ...state,
         elements: state.history[state.index + 1],
         index: state.index + 1,
       };
     }
-    case BOARD_ACTIONS.SET_INITIAL_ELEMENTS: {
+    case BOARD_ACTIONS.SET_SYNCED_ELEMENTS: {
       return {
         ...state,
         elements: action.payload.elements,
-        history: [action.payload.elements],
+        history: [...state.history, action.payload.elements],
+        index: state.index + 1,
       };
     }
     case BOARD_ACTIONS.SET_CANVAS_ID:
@@ -166,18 +148,6 @@ const boardReducer = (state, action) => {
         ...state,
         canvasId: action.payload.canvasId,
       };
-    case BOARD_ACTIONS.SET_CANVAS_ELEMENTS:
-      return {
-        ...state,
-        elements: action.payload.elements,
-      };
-
-    case BOARD_ACTIONS.SET_HISTORY:
-      return {
-        ...state,
-        history: [action.payload.elements],
-      };
-
     case BOARD_ACTIONS.SET_USER_LOGIN_STATUS:
       return {
         ...state,
@@ -209,24 +179,22 @@ const BoardProvider = ({ children }) => {
   const changeToolHandler = (tool) => {
     dispatchBoardAction({
       type: BOARD_ACTIONS.CHANGE_TOOL,
-      payload: {
-        tool,
-      },
+      payload: { tool },
     });
   };
 
   const boardMouseDownHandler = (event, toolboxState) => {
     if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
     const { clientX, clientY } = event;
+
     if (boardState.activeToolItem === TOOL_ITEMS.ERASER) {
       dispatchBoardAction({
         type: BOARD_ACTIONS.CHANGE_ACTION_TYPE,
-        payload: {
-          actionType: TOOL_ACTION_TYPES.ERASING,
-        },
+        payload: { actionType: TOOL_ACTION_TYPES.ERASING },
       });
       return;
     }
+
     dispatchBoardAction({
       type: BOARD_ACTIONS.DRAW_DOWN,
       payload: {
@@ -242,21 +210,16 @@ const BoardProvider = ({ children }) => {
   const boardMouseMoveHandler = (event) => {
     if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
     const { clientX, clientY } = event;
+
     if (boardState.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
       dispatchBoardAction({
         type: BOARD_ACTIONS.DRAW_MOVE,
-        payload: {
-          clientX,
-          clientY,
-        },
+        payload: { clientX, clientY },
       });
     } else if (boardState.toolActionType === TOOL_ACTION_TYPES.ERASING) {
       dispatchBoardAction({
         type: BOARD_ACTIONS.ERASE,
-        payload: {
-          clientX,
-          clientY,
-        },
+        payload: { clientX, clientY },
       });
     }
   };
@@ -270,18 +233,14 @@ const BoardProvider = ({ children }) => {
     }
     dispatchBoardAction({
       type: BOARD_ACTIONS.CHANGE_ACTION_TYPE,
-      payload: {
-        actionType: TOOL_ACTION_TYPES.NONE,
-      },
+      payload: { actionType: TOOL_ACTION_TYPES.NONE },
     });
   };
 
   const textAreaBlurHandler = (text) => {
     dispatchBoardAction({
       type: BOARD_ACTIONS.CHANGE_TEXT,
-      payload: {
-        text,
-      },
+      payload: { text },
     });
   };
 
@@ -300,36 +259,21 @@ const BoardProvider = ({ children }) => {
   const setCanvasId = (canvasId) => {
     dispatchBoardAction({
       type: BOARD_ACTIONS.SET_CANVAS_ID,
-      payload: {
-        canvasId,
-      },
+      payload: { canvasId },
     });
   };
 
-  const setElements = (elements) => {
+  const setSyncedElements = useCallback((elements) => {
     dispatchBoardAction({
-      type: BOARD_ACTIONS.SET_CANVAS_ELEMENTS,
-      payload: {
-        elements,
-      },
+      type: BOARD_ACTIONS.SYNC_ELEMENTS,
+      payload: { elements },
     });
-  };
-  // console.log("hello canvas")
-  const setHistory = (elements) => {
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.SET_HISTORY,
-      payload: {
-        elements,
-      },
-    });
-  };
+  }, []);
 
   const setUserLoginStatus = (isUserLoggedIn) => {
     dispatchBoardAction({
       type: BOARD_ACTIONS.SET_USER_LOGIN_STATUS,
-      payload: {
-        isUserLoggedIn,
-      },
+      payload: { isUserLoggedIn },
     });
   };
 
@@ -347,8 +291,7 @@ const BoardProvider = ({ children }) => {
     undo: boardUndoHandler,
     redo: boardRedoHandler,
     setCanvasId,
-    setElements,
-    setHistory,
+    setSyncedElements,
     setUserLoginStatus,
   };
 
