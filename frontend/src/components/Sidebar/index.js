@@ -89,7 +89,7 @@ const Sidebar = () => {
   };
 
   const handleCanvasClick = async (id) => {
-    navigate(`/canvas/${id}`);
+    navigate(`/${id}`);
   };
 
   const handleLogout = () => {
