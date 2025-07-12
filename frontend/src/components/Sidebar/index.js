@@ -17,6 +17,9 @@ const Sidebar = () => {
     setUserLoginStatus,
   } = useContext(boardContext);
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const { id } = useParams();
 
@@ -96,11 +99,41 @@ const Sidebar = () => {
     localStorage.removeItem("whiteboard_user_token");
     setCanvases([]);
     setUserLoginStatus(false);
-    window.location.reload();
+    navigate("/");
   };
 
   const handleLogin = () => {
     navigate("/login");
+  };
+
+  const handleShare = async () => {
+    if (!email.trim()) {
+      setError("Please enter an email.");
+      return;
+    }
+
+    try {
+      setError(""); // Clear previous errors
+      setSuccess(""); // Clear previous success message
+
+      const response = await axios.put(
+        `http://localhost:5000/api/canvas/share/${canvasId}`,
+        { email },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setSuccess(response.data.message);
+      setTimeout(() => {
+        setSuccess("");
+      }, 5000);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to share canvas.");
+      setTimeout(() => {
+        setError("");
+      }, 5000);
+    }
   };
 
   return (
@@ -135,6 +168,24 @@ const Sidebar = () => {
           </li>
         ))}
       </ul>
+
+      <div className="share-container">
+        <input
+          type="email"
+          placeholder="Enter the email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button
+          className="share-button"
+          onClick={handleShare}
+          disabled={!isUserLoggedIn}
+        >
+          Share
+        </button>
+        {error && <p className="error-message">{error}</p>}
+        {success && <p className="success-message">{success}</p>}
+      </div>
       {isUserLoggedIn ? (
         <button className="auth-button logout-button" onClick={handleLogout}>
           Logout
