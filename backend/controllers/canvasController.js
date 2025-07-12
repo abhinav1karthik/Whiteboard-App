@@ -77,3 +77,43 @@ exports.updateCanvas = async (req, res) => {
       .json({ error: "Failed to update canvas", details: error.message });
   }
 };
+
+exports.deleteCanvas = async (req, res) => {
+  try {
+    const canvasId = req.params.id;
+    const userId = req.userId;
+
+    const canvas = await Canvas.findById(canvasId);
+    if (!canvas) {
+      return res.status(404).json({ error: "Canvas not found" });
+    }
+    if (canvas.owner.toString() !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Only the owner can delete this canvas" });
+    }
+
+    await Canvas.findByIdAndDelete(canvasId);
+    res.json({ message: "Canvas deleted successfully" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to delete canvas", details: error.message });
+  }
+};
+
+exports.getUserCanvases = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const canvases = await Canvas.find({
+      $or: [{ owner: userId }, { shared: userId }],
+    }).sort({ createdAt: -1 });
+
+    res.json(canvases);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to fetch canvases", details: error.message });
+  }
+};

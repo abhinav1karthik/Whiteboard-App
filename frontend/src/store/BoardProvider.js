@@ -46,6 +46,8 @@ const boardReducer = (state, action) => {
       const { clientX, clientY } = action.payload;
       const newElements = [...state.elements];
       const index = state.elements.length - 1;
+      if (index < 0 || !newElements[index]) return state;
+
       const { type } = newElements[index];
       switch (type) {
         case TOOL_ITEMS.LINE:
@@ -69,9 +71,9 @@ const boardReducer = (state, action) => {
             ...newElements[index].points,
             { x: clientX, y: clientY },
           ];
-          // newElements[index].path = new Path2D(
-          //   getSvgPathFromStroke(getStroke(newElements[index].points))
-          // );
+          newElements[index].path = new Path2D(
+            getSvgPathFromStroke(getStroke(newElements[index].points))
+          );
           return {
             ...state,
             elements: newElements,
@@ -111,6 +113,8 @@ const boardReducer = (state, action) => {
     case BOARD_ACTIONS.CHANGE_TEXT: {
       const index = state.elements.length - 1;
       const newElements = [...state.elements];
+      if (index < 0 || !newElements[index]) return state;
+
       newElements[index].text = action.payload.text;
       const newHistory = state.history.slice(0, state.index + 1);
       newHistory.push(newElements);
@@ -300,11 +304,29 @@ const BoardProvider = ({ children }) => {
       payload: { canvasId: id },
     });
   };
+  const setElements = (elements) => {
+    dispatchBoardAction({
+      type: BOARD_ACTIONS.SET_CANVAS_ELEMENTS,
+      payload: {
+        elements,
+      },
+    });
+  };
 
+  const setHistory = (elements) => {
+    dispatchBoardAction({
+      type: BOARD_ACTIONS.SET_HISTORY,
+      payload: {
+        elements,
+      },
+    });
+  };
   const boardContextValue = {
     activeToolItem: boardState.activeToolItem,
     elements: boardState.elements,
     toolActionType: boardState.toolActionType,
+    canvasId: boardState.canvasId,
+    isUserLoggedIn: boardState.isUserLoggedIn,
     changeToolHandler,
     boardMouseDownHandler,
     boardMouseMoveHandler,
@@ -312,10 +334,10 @@ const BoardProvider = ({ children }) => {
     textAreaBlurHandler,
     undo: boardUndoHandler,
     redo: boardRedoHandler,
-    isUserLoggedIn: boardState.isUserLoggedIn,
-    setUserLoginStatus,
-    canvasId: boardState.canvasId,
     setCanvasId,
+    setElements,
+    setHistory,
+    setUserLoginStatus,
   };
 
   return (

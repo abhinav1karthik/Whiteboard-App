@@ -1,15 +1,19 @@
 const express = require("express");
 const {
   createCanvas,
-  loadCanvas,
-  getUserCanvases,
   updateCanvas,
+  loadCanvas,
+  deleteCanvas,
+  getUserCanvases,
 } = require("../controllers/canvasController");
-const authMiddleware = require("../middlewares/authMiddleware");
+const { authMiddleware } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
 router.post("/create", authMiddleware, createCanvas);
-router.get("/:id", authMiddleware, loadCanvas);
 router.put("/update", authMiddleware, updateCanvas);
+router.get("/load/:id", authMiddleware, loadCanvas);
+router.delete("/delete/:id", authMiddleware, deleteCanvas);
+router.get("/list", authMiddleware, getUserCanvases);
+
 module.exports = router;
