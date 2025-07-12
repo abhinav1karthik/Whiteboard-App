@@ -29,82 +29,120 @@ const io = new Server(server, {
   cors: {
     origin: "http://localhost:3000",
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
-let canvasData = {};
-let i = 0;
+// Track active rooms per socket
+const socketRooms = new Map();
+
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
+  // Initialize room tracking for this socket
+  socketRooms.set(socket.id, new Set());
+
   socket.on("joinCanvas", async ({ canvasId }) => {
-    console.log("Joining canvas:", canvasId);
     try {
-      const authHeader = socket.handshake.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        console.log("No token provided.");
+      const rooms = socketRooms.get(socket.id);
+
+      // Prevent duplicate joins
+      if (rooms.has(canvasId)) {
+        console.log(`User ${socket.id} already in canvas ${canvasId}`);
+        return;
+      }
+
+      // Get token from query parameter
+      const token = socket.handshake.query.token;
+      if (!token) {
+        console.log("No token provided");
         socket.emit("unauthorized", { message: "Access Denied: No Token" });
         return;
       }
 
-      const token = authHeader.split(" ")[1];
       const decoded = jwt.verify(token, SECRET_KEY);
       const userId = decoded.userId;
-      console.log("User ID:", userId);
+      console.log(`User ${userId} joining canvas ${canvasId}`);
 
       const canvas = await Canvas.findById(canvasId);
-      console.log(canvas);
-      if (
-        !canvas ||
-        (String(canvas.owner) !== String(userId) &&
-          !canvas.shared.includes(userId))
-      ) {
-        console.log("Unauthorized access.");
+      if (!canvas) {
+        console.log(`Canvas ${canvasId} not found`);
+        socket.emit("unauthorized", { message: "Canvas not found" });
+        return;
+      }
+
+      // Convert to string for reliable comparison
+      const ownerStr = canvas.owner.toString();
+      const userIdStr = userId.toString();
+      const sharedUsers = canvas.shared.map((id) => id.toString());
+
+      const isOwner = ownerStr === userIdStr;
+      const isShared = sharedUsers.includes(userIdStr);
+
+      if (!isOwner && !isShared) {
+        console.log(`User ${userIdStr} not authorized for canvas ${canvasId}`);
         socket.emit("unauthorized", {
-          message: "You are not authorized to join this canvas.",
+          message: "You are not authorized to join this canvas",
         });
         return;
       }
 
+      // Join the room and track it
       socket.join(canvasId);
+      rooms.add(canvasId);
       console.log(`User ${socket.id} joined canvas ${canvasId}`);
 
-      if (canvasData[canvasId]) {
-        console.log(canvasData);
-        socket.emit("loadCanvas", canvasData[canvasId]);
-      } else {
-        socket.emit("loadCanvas", canvas.elements);
-      }
+      // Send current canvas elements
+      socket.emit("loadCanvas", canvas.elements);
     } catch (error) {
-      console.error(error);
-      socket.emit("error", {
-        message: "An error occurred while joining the canvas.",
-      });
+      console.error("Join canvas error:", error);
+      if (error.name === "TokenExpiredError") {
+        socket.emit("unauthorized", { message: "Token expired" });
+      } else if (error.name === "JsonWebTokenError") {
+        socket.emit("unauthorized", { message: "Invalid token" });
+      } else {
+        socket.emit("error", {
+          message: "An error occurred while joining the canvas",
+        });
+      }
     }
   });
 
   socket.on("drawingUpdate", async ({ canvasId, elements }) => {
     try {
-      canvasData[canvasId] = elements;
-
+      // Broadcast to others in the room (except sender)
       socket.to(canvasId).emit("receiveDrawingUpdate", elements);
 
-      const canvas = await Canvas.findById(canvasId);
-      if (canvas) {
-        // console.log('updating canvas... ', i++)
-        await Canvas.findByIdAndUpdate(
-          canvasId,
-          { elements },
-          { new: true, useFindAndModify: false }
-        );
-      }
+      // Update database
+      await Canvas.findByIdAndUpdate(
+        canvasId,
+        { elements },
+        { new: true, useFindAndModify: false }
+      );
     } catch (error) {
-      console.error(error);
+      console.error("Drawing update error:", error);
+    }
+  });
+
+  socket.on("leaveCanvas", ({ canvasId }) => {
+    const rooms = socketRooms.get(socket.id);
+    if (rooms && rooms.has(canvasId)) {
+      socket.leave(canvasId);
+      rooms.delete(canvasId);
+      console.log(`User ${socket.id} left canvas ${canvasId}`);
     }
   });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+    // Cleanup all rooms for this socket
+    const rooms = socketRooms.get(socket.id);
+    if (rooms) {
+      rooms.forEach((roomId) => {
+        socket.leave(roomId);
+      });
+      socketRooms.delete(socket.id);
+    }
   });
 });
 

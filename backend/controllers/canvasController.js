@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 // Create a new canvas
 exports.createCanvas = async (req, res) => {
   try {
-    const userId = req.userId; // Get the authenticated user ID
+    const userId = req.userId;
 
     const newCanvas = new Canvas({
       owner: userId,
@@ -14,48 +14,47 @@ exports.createCanvas = async (req, res) => {
     });
 
     await newCanvas.save();
-    res
-      .status(201)
-      .json({
-        message: "Canvas created successfully",
-        canvasId: newCanvas._id,
-      });
+    res.status(201).json({
+      message: "Canvas created successfully",
+      canvasId: newCanvas._id,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to create canvas", details: error.message });
+    res.status(500).json({
+      error: "Failed to create canvas",
+      details: error.message,
+    });
   }
 };
 
-// Update an existing canvas (when elements are drawn)
+// Update an existing canvas
 exports.updateCanvas = async (req, res) => {
   try {
     const { canvasId, elements } = req.body;
     const userId = req.userId;
-    console.log("canvas id ", canvasId);
 
-    const canvas = await Canvas.findById(canvasId);
-    if (!canvas) {
-      return res.status(404).json({ error: "Canvas not found" });
+    const updateQuery = {
+      $set: { elements },
+      $or: [{ owner: userId }, { shared: userId }],
+    };
+
+    const result = await Canvas.findOneAndUpdate(
+      { _id: canvasId },
+      updateQuery,
+      { new: true, runValidators: true }
+    );
+
+    if (!result) {
+      return res.status(403).json({
+        error: "Unauthorized to update this canvas or canvas not found",
+      });
     }
-
-    // Ensure only the owner or shared users can update
-    if (canvas.owner.toString() !== userId && !canvas.shared.includes(userId)) {
-      return res
-        .status(403)
-        .json({ error: "Unauthorized to update this canvas" });
-    }
-
-    canvas.elements = elements;
-    await canvas.save();
-
-    console.log("saved");
 
     res.json({ message: "Canvas updated successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to update canvas", details: error.message });
+    res.status(500).json({
+      error: "Failed to update canvas",
+      details: error.message,
+    });
   }
 };
 
@@ -70,21 +69,23 @@ exports.loadCanvas = async (req, res) => {
       return res.status(404).json({ error: "Canvas not found" });
     }
 
-    // Ensure only the owner or shared users can access it
-    if (canvas.owner.toString() !== userId && !canvas.shared.includes(userId)) {
-      return res
-        .status(403)
-        .json({ error: "Unauthorized to access this canvas" });
+    const isOwner = String(canvas.owner) === String(userId);
+    const isShared = canvas.shared.some((id) => String(id) === String(userId));
+
+    if (!isOwner && !isShared) {
+      return res.status(403).json({
+        error: "Unauthorized to access this canvas",
+      });
     }
 
     res.json(canvas);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to load canvas", details: error.message });
+    res.status(500).json({
+      error: "Failed to load canvas",
+      details: error.message,
+    });
   }
 };
-
 exports.shareCanvas = async (req, res) => {
   try {
     const { email } = req.body;
