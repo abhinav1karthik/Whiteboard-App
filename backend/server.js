@@ -144,6 +144,21 @@ io.on("connection", (socket) => {
       socketRooms.delete(socket.id);
     }
   });
+  socket.on("eraseUpdate", async ({ canvasId, elements }) => {
+    try {
+      // Broadcast erase to others
+      socket.to(canvasId).emit("receiveEraseUpdate", elements);
+
+      // Update database
+      await Canvas.findByIdAndUpdate(
+        canvasId,
+        { elements },
+        { new: true, useFindAndModify: false }
+      );
+    } catch (error) {
+      console.error("Erase update error:", error);
+    }
+  });
 });
 
 server.listen(5000, () => console.log("Server running on port 5000"));

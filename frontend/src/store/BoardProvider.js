@@ -23,6 +23,19 @@ const boardReducer = (state, action) => {
         history: [...state.history, action.payload.elements],
         index: state.index + 1,
       };
+    case BOARD_ACTIONS.ERASE: {
+      const { clientX, clientY } = action.payload;
+      const newElements = state.elements.filter((element) => {
+        return !isPointNearElement(element, clientX, clientY);
+      });
+      const newHistory = [...state.history, newElements];
+      return {
+        ...state,
+        elements: newElements,
+        history: newHistory,
+        index: state.index + 1,
+      };
+    }
     case BOARD_ACTIONS.DRAW_DOWN: {
       const { clientX, clientY, stroke, fill, size } = action.payload;
       const newElement = createElement(

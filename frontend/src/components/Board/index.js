@@ -50,6 +50,11 @@ function Board({ id }) {
         setSyncedElements(updatedElements);
       }
     };
+    const handleEraseUpdate = (updatedElements) => {
+      if (isMounted.current) {
+        setSyncedElements(updatedElements);
+      }
+    };
 
     const handleUnauthorized = (data) => {
       if (isMounted.current) {
@@ -62,6 +67,7 @@ function Board({ id }) {
     // Register socket listeners
     socket.on("loadCanvas", handleLoadCanvas);
     socket.on("receiveDrawingUpdate", handleUpdate);
+    socket.on("receiveEraseUpdate", handleEraseUpdate);
     socket.on("unauthorized", handleUnauthorized);
 
     // Join canvas room
@@ -77,6 +83,7 @@ function Board({ id }) {
       // Remove listeners
       socket.off("loadCanvas", handleLoadCanvas);
       socket.off("receiveDrawingUpdate", handleUpdate);
+      socket.off("receiveEraseUpdate", handleEraseUpdate);
       socket.off("unauthorized", handleUnauthorized);
     };
   }, [id, setSyncedElements]);
@@ -176,21 +183,28 @@ function Board({ id }) {
 
   const handleMouseMove = useCallback(
     (event) => {
-      if (!isAuthorized || toolActionType !== TOOL_ACTION_TYPES.DRAWING) return;
-      boardMouseMoveHandler(event);
+      if (!isAuthorized) return;
+
+      if (toolActionType === TOOL_ACTION_TYPES.ERASING) {
+        boardMouseMoveHandler(event); // Handle erasing
+      } else if (toolActionType === TOOL_ACTION_TYPES.DRAWING) {
+        boardMouseMoveHandler(event);
+      }
     },
     [isAuthorized, toolActionType, boardMouseMoveHandler]
   );
 
   const handleMouseUp = useCallback(() => {
     if (!isAuthorized) return;
-    boardMouseUpHandler();
 
-    // Only send update if we have elements
-    if (elements.length > 0) {
+    if (toolActionType === TOOL_ACTION_TYPES.ERASING) {
+      socket.emit("eraseUpdate", { canvasId: id, elements }); // Emit erase updates
+    } else if (toolActionType === TOOL_ACTION_TYPES.DRAWING) {
       socket.emit("drawingUpdate", { canvasId: id, elements });
     }
-  }, [isAuthorized, boardMouseUpHandler, elements, id]);
+
+    boardMouseUpHandler();
+  }, [isAuthorized, boardMouseUpHandler, elements, id, toolActionType]);
 
   return (
     <>

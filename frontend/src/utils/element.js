@@ -90,10 +90,12 @@ export const createElement = (
 export const isPointNearElement = (element, pointX, pointY) => {
   const { x1, y1, x2, y2, type } = element;
   const context = document.getElementById("canvas").getContext("2d");
+
   switch (type) {
     case TOOL_ITEMS.LINE:
     case TOOL_ITEMS.ARROW:
       return isPointCloseToLine(x1, y1, x2, y2, pointX, pointY);
+
     case TOOL_ITEMS.RECTANGLE:
     case TOOL_ITEMS.CIRCLE:
       return (
@@ -102,8 +104,23 @@ export const isPointNearElement = (element, pointX, pointY) => {
         isPointCloseToLine(x2, y2, x1, y2, pointX, pointY) ||
         isPointCloseToLine(x1, y2, x1, y1, pointX, pointY)
       );
+
     case TOOL_ITEMS.BRUSH:
-      return context.isPointInPath(element.path, pointX, pointY);
+      if (element.points.length > 1) {
+        const path = new Path2D(
+          getSvgPathFromStroke(getStroke(element.points))
+        );
+        element.path = path;
+        return context.isPointInPath(path, pointX, pointY);
+      }
+
+      if (element.points.length === 1) {
+        const [point] = element.points;
+        return (
+          Math.abs(point.x - pointX) < 5 && Math.abs(point.y - pointY) < 5 // Check proximity to the single point
+        );
+      }
+
     case TOOL_ITEMS.TEXT:
       context.font = `${element.size}px Caveat`;
       context.fillStyle = element.stroke;
@@ -130,6 +147,7 @@ export const isPointNearElement = (element, pointX, pointY) => {
         ) ||
         isPointCloseToLine(x1, y1 + textHeight, x1, y1, pointX, pointY)
       );
+
     default:
       throw new Error("Type not recognized");
   }
