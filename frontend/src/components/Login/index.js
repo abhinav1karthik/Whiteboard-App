@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import styles from "./index.module.css";
 import boardContext from "../../store/board-context";
@@ -10,6 +10,14 @@ const Login = () => {
   const { isUserLoggedIn, setUserLoginStatus } = useContext(boardContext);
 
   console.log(isUserLoggedIn);
+
+  useEffect(() => {
+    const token = localStorage.getItem("whiteboard_user_token");
+    if (token) {
+      navigate("/");
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -24,7 +32,13 @@ const Login = () => {
       if (response.ok) {
         localStorage.setItem("whiteboard_user_token", data.token);
         setUserLoginStatus(true);
-        navigate("/");
+        // Disconnect and reload to ensure socket and API use new token
+        import("../../utils/socket").then(({ default: socket }) => {
+          if (socket && socket.connected) {
+            socket.disconnect();
+          }
+          window.location.reload();
+        });
       } else {
         alert(data.message || "Login failed");
       }

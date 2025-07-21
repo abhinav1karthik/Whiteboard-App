@@ -2,10 +2,8 @@ import axios from "axios";
 
 const API_BASE_URL = "http://localhost:5000/api/canvas";
 
-const token = localStorage.getItem("whiteboard_user_token");
-const canvasId = localStorage.getItem("canvas_id");
-
 export const updateCanvas = async (canvasId, elements) => {
+  const token = localStorage.getItem("whiteboard_user_token");
   try {
     const response = await axios.put(
       `${API_BASE_URL}/update`,
@@ -24,6 +22,7 @@ export const updateCanvas = async (canvasId, elements) => {
 };
 
 export const fetchInitialCanvasElements = async (canvasId) => {
+  const token = localStorage.getItem("whiteboard_user_token");
   try {
     const response = await axios.get(`${API_BASE_URL}/load/${canvasId}`, {
       headers: {
