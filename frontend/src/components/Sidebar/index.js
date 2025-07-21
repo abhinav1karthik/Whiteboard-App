@@ -6,6 +6,8 @@ import boardContext from "../../store/board-context";
 import { useParams } from "react-router-dom";
 import socket from "../../utils/socket";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL;
+
 const Sidebar = () => {
   const [canvases, setCanvases] = useState([]);
   const token = localStorage.getItem("whiteboard_user_token");
@@ -34,6 +36,8 @@ const Sidebar = () => {
   };
 
   const currentUserId = getCurrentUserId();
+
+  // Ensure Sidebar always joins the correct socket room for the current canvas
   useEffect(() => {
     if (!canvasId) return;
     socket.emit("joinCanvas", { canvasId });
@@ -43,6 +47,7 @@ const Sidebar = () => {
       console.log("Sidebar left canvas room:", canvasId);
     };
   }, [canvasId]);
+
   useEffect(() => {
     if (isUserLoggedIn) {
       fetchCanvases();
@@ -65,9 +70,7 @@ const Sidebar = () => {
         )
       );
     };
-
     socket.on("canvasNameUpdated", handleCanvasNameUpdated);
-
     return () => {
       socket.off("canvasNameUpdated", handleCanvasNameUpdated);
     };
@@ -94,12 +97,9 @@ const Sidebar = () => {
 
   const fetchCanvases = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:5000/api/canvas/list",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await axios.get(`${API_BASE_URL}/api/canvas/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setCanvases(response.data);
 
       if (response.data.length === 0) {
@@ -116,7 +116,7 @@ const Sidebar = () => {
   const handleCreateCanvas = async () => {
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/canvas/create",
+        `${API_BASE_URL}/api/canvas/create`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -133,7 +133,7 @@ const Sidebar = () => {
   const handleDeleteCanvas = async (id, isOwner) => {
     if (!isOwner) return;
     try {
-      await axios.delete(`http://localhost:5000/api/canvas/delete/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/canvas/delete/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchCanvases();
@@ -178,7 +178,7 @@ const Sidebar = () => {
       setSuccess("");
 
       const response = await axios.put(
-        `http://localhost:5000/api/canvas/share/${canvasId}`,
+        `${API_BASE_URL}/api/canvas/share/${canvasId}`,
         { email },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -195,13 +195,13 @@ const Sidebar = () => {
     if (!isOwner) return;
     try {
       await axios.put(
-        "http://localhost:5000/api/canvas/update-name",
+        `${API_BASE_URL}/api/canvas/update-name`,
         { canvasId, name: newCanvasName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setEditingCanvasId(null);
       setNewCanvasName("");
-      // No need to manually update canvases here; the socket event will do it!
+      // The socket event will update the UI
     } catch (err) {
       setError(err.response?.data?.error || "Failed to update name");
       setTimeout(() => setError(""), 5000);

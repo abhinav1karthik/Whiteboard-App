@@ -10,7 +10,7 @@ export const getSocket = () => {
 
   const token = localStorage.getItem("whiteboard_user_token") || "";
 
-  socketInstance = io("http://localhost:5000", {
+  socketInstance = io(process.env.REACT_APP_API_URL, {
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,
