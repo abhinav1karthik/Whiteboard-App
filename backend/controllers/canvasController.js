@@ -11,6 +11,7 @@ exports.createCanvas = async (req, res) => {
       owner: userId,
       shared: [],
       elements: [],
+      name: "Untitled", // Default name
     });
 
     await newCanvas.save();
@@ -26,7 +27,50 @@ exports.createCanvas = async (req, res) => {
   }
 };
 
-// Update an existing canvas
+// Update canvas name
+exports.updateCanvasName = async (req, res) => {
+  try {
+    const { canvasId, name } = req.body;
+    const userId = req.userId;
+    console.log("updateCanvasName called", { canvasId, name, userId });
+
+    // Validate name length
+    if (!name || name.length > 20) {
+      return res.status(400).json({
+        error: "Canvas name must be between 1-20 characters",
+      });
+    }
+
+    const canvas = await Canvas.findById(canvasId);
+    if (!canvas) {
+      return res.status(404).json({ error: "Canvas not found" });
+    }
+
+    // Check ownership
+    if (canvas.owner.toString() !== userId) {
+      return res.status(403).json({
+        error: "Only owner can rename canvas",
+      });
+    }
+
+    // Update and save
+    canvas.name = name;
+    await canvas.save();
+
+    // Emit update to all connected clients
+    req.io.to(canvasId).emit("canvasNameUpdated", { canvasId, name });
+
+    res.json({ message: "Canvas name updated successfully" });
+  } catch (error) {
+    console.error("Update canvas name error:", error);
+    res.status(500).json({
+      error: "Failed to update canvas name",
+      details: error.message,
+    });
+  }
+};
+
+// Update canvas elements
 exports.updateCanvas = async (req, res) => {
   try {
     const { canvasId, elements } = req.body;
@@ -86,6 +130,7 @@ exports.loadCanvas = async (req, res) => {
     });
   }
 };
+
 exports.shareCanvas = async (req, res) => {
   try {
     const { email } = req.body;

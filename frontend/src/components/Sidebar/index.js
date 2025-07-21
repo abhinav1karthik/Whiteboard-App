@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import "./index.min.css";
 import { useNavigate } from "react-router-dom";
 import boardContext from "../../store/board-context";
 import { useParams } from "react-router-dom";
+import socket from "../../utils/socket";
 
 const Sidebar = () => {
   const [canvases, setCanvases] = useState([]);
@@ -17,6 +18,31 @@ const Sidebar = () => {
   const [success, setSuccess] = useState("");
   const { id } = useParams();
 
+  const [editingCanvasId, setEditingCanvasId] = useState(null);
+  const [newCanvasName, setNewCanvasName] = useState("");
+  const editInputRef = useRef(null);
+
+  // Get current user ID from token
+  const getCurrentUserId = () => {
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.userId;
+    } catch {
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
+  useEffect(() => {
+    if (!canvasId) return;
+    socket.emit("joinCanvas", { canvasId });
+    console.log("Sidebar joined canvas room:", canvasId);
+    return () => {
+      socket.emit("leaveCanvas", { canvasId });
+      console.log("Sidebar left canvas room:", canvasId);
+    };
+  }, [canvasId]);
   useEffect(() => {
     if (isUserLoggedIn) {
       fetchCanvases();
@@ -29,6 +55,42 @@ const Sidebar = () => {
       navigate(`/${canvases[0]._id}`);
     }
   }, [canvases, id, navigate]);
+
+  useEffect(() => {
+    // Listen for canvas name updates
+    const handleCanvasNameUpdated = ({ canvasId, name }) => {
+      setCanvases((prevCanvases) =>
+        prevCanvases.map((canvas) =>
+          canvas._id === canvasId ? { ...canvas, name } : canvas
+        )
+      );
+    };
+
+    socket.on("canvasNameUpdated", handleCanvasNameUpdated);
+
+    return () => {
+      socket.off("canvasNameUpdated", handleCanvasNameUpdated);
+    };
+  }, []);
+
+  // Handle outside click to cancel edit
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        editInputRef.current &&
+        !editInputRef.current.contains(event.target)
+      ) {
+        setEditingCanvasId(null);
+        setNewCanvasName("");
+      }
+    }
+    if (editingCanvasId) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [editingCanvasId]);
 
   const fetchCanvases = async () => {
     try {
@@ -68,7 +130,8 @@ const Sidebar = () => {
     }
   };
 
-  const handleDeleteCanvas = async (id) => {
+  const handleDeleteCanvas = async (id, isOwner) => {
+    if (!isOwner) return;
     try {
       await axios.delete(`http://localhost:5000/api/canvas/delete/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -83,11 +146,13 @@ const Sidebar = () => {
         handleCreateCanvas();
       }
     } catch (error) {
-      console.error("Error deleting canvas:", error);
+      setError(error.response?.data?.error || "Failed to delete canvas");
+      setTimeout(() => setError(""), 5000);
     }
   };
 
   const handleCanvasClick = (id) => {
+    setCanvasId(id);
     navigate(`/${id}`);
   };
 
@@ -126,6 +191,23 @@ const Sidebar = () => {
     }
   };
 
+  const handleUpdateName = async (canvasId, isOwner) => {
+    if (!isOwner) return;
+    try {
+      await axios.put(
+        "http://localhost:5000/api/canvas/update-name",
+        { canvasId, name: newCanvasName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditingCanvasId(null);
+      setNewCanvasName("");
+      // No need to manually update canvases here; the socket event will do it!
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to update name");
+      setTimeout(() => setError(""), 5000);
+    }
+  };
+
   return (
     <div className="sidebar">
       <button
@@ -137,27 +219,82 @@ const Sidebar = () => {
       </button>
 
       <ul className="canvas-list">
-        {canvases.map((canvas) => (
-          <li
-            key={canvas._id}
-            className={`canvas-item ${
-              canvas._id === canvasId ? "selected" : ""
-            }`}
-          >
-            <span
-              className="canvas-name"
-              onClick={() => handleCanvasClick(canvas._id)}
+        {canvases.map((canvas) => {
+          const isOwner = canvas.owner.toString() === currentUserId;
+          const isSelected = canvas._id === canvasId;
+          return (
+            <li
+              key={canvas._id}
+              className={`canvas-item${isSelected ? " selected" : ""}`}
             >
-              Canvas {canvases.indexOf(canvas) + 1}
-            </span>
-            <button
-              className="delete-button"
-              onClick={() => handleDeleteCanvas(canvas._id)}
-            >
-              ×
-            </button>
-          </li>
-        ))}
+              {editingCanvasId === canvas._id ? (
+                <div className="name-edit-container" ref={editInputRef}>
+                  <input
+                    type="text"
+                    value={newCanvasName}
+                    onChange={(e) => setNewCanvasName(e.target.value)}
+                    maxLength={20}
+                    className="name-edit-input"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleUpdateName(canvas._id, isOwner)}
+                    className="save-name-button"
+                    disabled={!isOwner}
+                    title={!isOwner ? "Only owner can edit canvas" : ""}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingCanvasId(null);
+                      setNewCanvasName("");
+                    }}
+                    className="cancel-name-button"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span
+                    className="canvas-name"
+                    onClick={() => handleCanvasClick(canvas._id)}
+                  >
+                    {canvas.name || `Canvas ${canvases.indexOf(canvas) + 1}`}
+                  </span>
+                  <div className="canvas-actions">
+                    <button
+                      className={`edit-button${!isOwner ? " disabled" : ""}`}
+                      onClick={() => {
+                        setEditingCanvasId(canvas._id);
+                        setNewCanvasName(canvas.name);
+                      }}
+                      disabled={!isOwner}
+                      title={
+                        !isOwner ? "Only owner can edit canvas" : "Edit name"
+                      }
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      className={`delete-button${!isOwner ? " disabled" : ""}`}
+                      onClick={() => handleDeleteCanvas(canvas._id, isOwner)}
+                      disabled={!isOwner}
+                      title={
+                        !isOwner
+                          ? "Only owner can delete canvas"
+                          : "Delete canvas"
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                </>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       <div className="share-container">

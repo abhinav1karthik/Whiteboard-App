@@ -3,17 +3,24 @@
   right: 0;
   top: 0;
   height: 100vh;
-  width: 350px; /* Adjust width as needed */
-  background: rgba(240, 240, 240, 0.9); /* Slight transparency */
+  width: 350px;
+  background: rgba(240, 240, 240, 0.9);
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px); /* Glassmorphism effect */
+  backdrop-filter: blur(10px);
   padding: 20px;
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+  box-shadow: -4px 0 16px rgba(25, 118, 210, 0.08);
+  padding-top: 32px;
 }
 
 .sidebar-title {
-  font-size: 1.5rem;
-  margin-bottom: 20px;
-  color: #333;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #1976d2;
+  margin-bottom: 24px;
+  text-align: center;
+  letter-spacing: 1px;
 }
 
 .create-button {
@@ -47,20 +54,73 @@
   margin-bottom: 10px;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.canvas-item:hover {
+  background: #f5faff;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.07);
 }
 
 .canvas-item.selected {
-  background-color: #f0f8ff; /* Light blue background to indicate selection */
-  border: 2px solid #007bff; /* Add a blue border for emphasis */
-  color: #007bff; /* Change text color to match the selection theme */
-  font-weight: bold; /* Make the text bold for better visibility */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Slightly stronger shadow for focus */
-  transition: all 0.3s ease; /* Smooth transition for hover or selection changes */
+  background-color: #e3f2fd;
+  border: 2px solid #1976d2;
+  color: #1976d2;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(25, 118, 210, 0.15);
+  transition: all 0.3s ease;
 }
 
 .canvas-name {
-  font-size: 1rem;
-  color: #333;
+  font-size: 1.08rem;
+  font-weight: 500;
+  color: #222;
+  flex-grow: 1;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.canvas-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.edit-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+}
+
+.edit-button.disabled,
+.delete-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.edit-button[title]:hover::after,
+.delete-button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  right: 110%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #333;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  white-space: pre-line;
+  z-index: 9999;
+  pointer-events: none;
+  min-width: 160px;
+  max-width: 220px;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  word-break: break-word;
 }
 
 .delete-button {
@@ -172,4 +232,43 @@
   background-color: #d4edda;
   border: 1px solid #c3e6cb;
   border-radius: 5px;
+}
+
+.name-edit-container {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+}
+
+.name-edit-input {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.save-name-button,
+.cancel-name-button {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.save-name-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+.cancel-name-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.canvas-item,
+.canvas-actions {
+  overflow: visible !important;
+  position: relative;
 }

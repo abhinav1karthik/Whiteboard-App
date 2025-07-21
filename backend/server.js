@@ -18,6 +18,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Attach io to req BEFORE routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/canvas", canvasRoutes);
