@@ -9,8 +9,6 @@ const Login = () => {
   const navigate = useNavigate();
   const { isUserLoggedIn, setUserLoginStatus } = useContext(boardContext);
 
-  console.log(isUserLoggedIn);
-
   useEffect(() => {
     const token = localStorage.getItem("whiteboard_user_token");
     if (token) {
@@ -49,29 +47,35 @@ const Login = () => {
   };
 
   return (
-    <div className={styles.loginContainer}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit} className={styles.loginForm}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Login</button>
-      </form>
-      <p>
-        Don't have an account? <Link to="/register">Register here</Link>
-      </p>
-    </div>
+    <>
+      <div className={styles.loginBackground}></div>
+      <div className={styles.loginOverlay}></div>
+      <div className={styles.loginContainer}>
+        <div className={styles.loginCard}>
+          <div className={styles.loginTitle}>Sign in to Whiteboard</div>
+          <form onSubmit={handleSubmit} className={styles.loginForm}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button type="submit">Login</button>
+          </form>
+          <Link to="/register" className={styles.loginLink}>
+            Don't have an account? Register here
+          </Link>
+        </div>
+      </div>
+    </>
   );
 };
 

@@ -36,36 +36,42 @@ const Register = () => {
   };
 
   return (
-    <div className={styles.registerContainer}>
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit} className={styles.registerForm}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Register</button>
-      </form>
-      <p>
-        Already have an account? <Link to="/login">Login here</Link>
-      </p>
-    </div>
+    <>
+      <div className={styles.registerBackground}></div>
+      <div className={styles.registerOverlay}></div>
+      <div className={styles.registerContainer}>
+        <div className={styles.registerCard}>
+          <div className={styles.registerTitle}>Create your account</div>
+          <form onSubmit={handleSubmit} className={styles.registerForm}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            <button type="submit">Register</button>
+          </form>
+          <Link to="/login" className={styles.registerLink}>
+            Already have an account? Login here
+          </Link>
+        </div>
+      </div>
+    </>
   );
 };
 
