@@ -14,6 +14,7 @@ import socket from "../../utils/socket";
 import classes from "./index.module.css";
 import { getSvgPathFromStroke } from "../../utils/element";
 import getStroke from "perfect-freehand";
+import throttle from "lodash.throttle";
 
 function Board({ id }) {
   const canvasRef = useRef();
@@ -87,6 +88,19 @@ function Board({ id }) {
       socket.off("unauthorized", handleUnauthorized);
     };
   }, [id, setSyncedElements]);
+
+  // Throttled socket emitters for efficiency
+  const throttledEmitDrawing = useRef(
+    throttle((canvasId, elements) => {
+      socket.emit("drawingUpdate", { canvasId, elements });
+    }, 50)
+  ).current;
+
+  const throttledEmitErase = useRef(
+    throttle((canvasId, elements) => {
+      socket.emit("eraseUpdate", { canvasId, elements });
+    }, 50)
+  ).current;
 
   // Canvas rendering
   useLayoutEffect(() => {
@@ -186,12 +200,22 @@ function Board({ id }) {
       if (!isAuthorized) return;
 
       if (toolActionType === TOOL_ACTION_TYPES.ERASING) {
-        boardMouseMoveHandler(event); // Handle erasing
+        boardMouseMoveHandler(event);
+        throttledEmitErase(id, elements);
       } else if (toolActionType === TOOL_ACTION_TYPES.DRAWING) {
         boardMouseMoveHandler(event);
+        throttledEmitDrawing(id, elements);
       }
     },
-    [isAuthorized, toolActionType, boardMouseMoveHandler]
+    [
+      isAuthorized,
+      toolActionType,
+      boardMouseMoveHandler,
+      id,
+      elements,
+      throttledEmitDrawing,
+      throttledEmitErase,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -218,7 +242,17 @@ function Board({ id }) {
             fontSize: `${elements[elements.length - 1]?.size || 16}px`,
             color: elements[elements.length - 1]?.stroke || "#000000",
           }}
-          onBlur={(event) => textAreaBlurHandler(event.target.value)}
+          onBlur={(event) => {
+            textAreaBlurHandler(event.target.value);
+            // Emit text update to others
+            socket.emit("drawingUpdate", {
+              canvasId: id,
+              elements: [
+                ...elements.slice(0, -1),
+                { ...elements[elements.length - 1], text: event.target.value },
+              ],
+            });
+          }}
         />
       )}
       <canvas
